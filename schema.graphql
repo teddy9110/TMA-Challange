@@ -480,6 +480,7 @@ type Task implements Node {
   complete: Boolean!
   completedAt: Datetime
   createdAt: Datetime!
+  dueDate: Datetime
   id: UUID!
 
   """
@@ -501,6 +502,9 @@ input TaskCondition {
 
   """Checks for equality with the object’s `createdAt` field."""
   createdAt: Datetime
+
+  """Checks for equality with the object’s `dueDate` field."""
+  dueDate: Datetime
 
   """Checks for equality with the object’s `id` field."""
   id: UUID
@@ -525,6 +529,9 @@ input TaskFilter {
   """Filter by the object’s `createdAt` field."""
   createdAt: DatetimeFilter
 
+  """Filter by the object’s `dueDate` field."""
+  dueDate: DatetimeFilter
+
   """Filter by the object’s `id` field."""
   id: UUIDFilter
 
@@ -541,6 +548,7 @@ input TaskFilter {
 """An input for mutations affecting `Task`"""
 input TaskInput {
   complete: Boolean
+  dueDate: Datetime
   id: UUID
   text: String!
 }
@@ -579,6 +587,8 @@ enum TasksOrderBy {
   COMPLETE_DESC
   CREATED_AT_ASC
   CREATED_AT_DESC
+  DUE_DATE_ASC
+  DUE_DATE_DESC
   ID_ASC
   ID_DESC
   NATURAL

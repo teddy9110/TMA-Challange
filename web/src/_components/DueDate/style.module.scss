@@ -1,0 +1,19 @@
+@import "../../style/variables";
+
+	.dueDate {
+	font-size: 12px;
+	font-weight: 400;
+	margin-top: 4px;
+
+	&.overdue {
+		color: #ef4444;
+	}
+
+	&.due-soon {
+		color: #3b82f6;
+	}
+
+	&.upcoming {
+		color: #9ca3af;
+	}
+}

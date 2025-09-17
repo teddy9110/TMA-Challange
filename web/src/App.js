@@ -14,80 +14,160 @@ export default function App () {
 		, [busy, setBusy] = useState(false);
 
 	const { data, loading, error, refetch } = useQuery(gql`
-		query {
-			active: tasks (
-				filter: { complete: { equalTo: false } }
-				orderBy: [CREATED_AT_ASC]
-			) {
-				nodes {
-					...Task
-				}
-			}
-			complete: tasks (
-				filter: { complete: { equalTo: true } }
-				orderBy: [COMPLETED_AT_ASC]
-			) {
-				nodes {
-					...Task
-				}
-			}
-		}
-		fragment Task on Task {
-			id
-			text
-			complete
-		}
-	`);
+        query {
+            active: tasks (
+                filter: { complete: { equalTo: false } }
+                orderBy: [CREATED_AT_ASC]
+            ) {
+                nodes {
+                    ...Task
+                }
+            }
+            complete: tasks (
+                filter: { complete: { equalTo: true } }
+                orderBy: [COMPLETED_AT_ASC]
+            ) {
+                nodes {
+                    ...Task
+                }
+            }
+        }
+        fragment Task on Task {
+            id
+            text
+            complete
+            dueDate
+            createdAt
+        }
+    `);
 
 	const [create] = useMutation(gql`
-		mutation Create ($text: String!) {
-			createTask (input: { task: { text: $text } }) {
-				clientMutationId
-			}
-		}
-	`);
+        mutation Create ($text: String!, $dueDate: Datetime) {
+            createTask (input: { task: { text: $text, dueDate: $dueDate } }) {
+                task {
+                    id
+                    text
+                    complete
+                    dueDate
+                    createdAt
+                }
+            }
+        }
+    `);
 
 	const [complete] = useMutation(gql`
-		mutation Complete ($id: UUID!) {
-			complete (input: { id: $id }) {
-				clientMutationId
-			}
-		}
-	`);
+        mutation Complete ($id: UUID!) {
+            complete (input: { id: $id }) {
+                task {
+                    id
+                    text
+                    complete
+                    dueDate
+                    createdAt
+                    completedAt
+                }
+            }
+        }
+    `);
 
 	const [uncomplete] = useMutation(gql`
-		mutation Uncomplete ($id: UUID!) {
-			uncomplete (input: { id: $id }) {
-				clientMutationId
-			}
-		}
-	`);
+        mutation Uncomplete ($id: UUID!) {
+            uncomplete (input: { id: $id }) {
+                task {
+                    id
+                    text
+                    complete
+                    dueDate
+                    createdAt
+                }
+            }
+        }
+    `);
 
-	const onSubmit = async text => {
+	const onSubmit = async ({text, dateTime}) => {
 		setBusy(true);
+		const dueDate = dateTime ? new Date(dateTime).toISOString() : null;
+
 		await create({
-			variables: { text },
+			variables: {
+				text,
+				dueDate: dueDate
+			},
 			optimisticResponse: {
 				__typename: 'Mutation',
 				createTask: {
-					__typename: 'Task',
-					id: Math.random(),
-					text,
-					complete: false,
-					createdAt: Date.now(),
+					__typename: 'CreateTaskPayload',
+					task: {
+						__typename: 'Task',
+						id: Math.random().toString(),
+						text,
+						complete: false,
+						dueDate: dueDate,
+						createdAt: new Date().toISOString()
+					}
 				},
 			},
+			update: (cache, { data }) => {
+				// Update the cache with the new task
+				const existingData = cache.readQuery({
+					query: gql`
+					query {
+						active: tasks (
+							filter: { complete: { equalTo: false } }
+							orderBy: [CREATED_AT_ASC]
+						) {
+							nodes {
+								id
+								text
+								complete
+								dueDate
+								createdAt
+							}
+						}
+					}
+				`
+				});
+
+				if (existingData && data.createTask.task) {
+					cache.writeQuery({
+						query: gql`
+						query {
+							active: tasks (
+								filter: { complete: { equalTo: false } }
+								orderBy: [CREATED_AT_ASC]
+							) {
+								nodes {
+									id
+									text
+									complete
+									dueDate
+									createdAt
+								}
+							}
+						}
+					`,
+						data: {
+							active: {
+								...existingData.active,
+								nodes: [...existingData.active.nodes, data.createTask.task]
+							}
+						}
+					});
+				}
+			}
 		});
 
 		await refetch();
 		setBusy(false);
 	};
 
+
 	const renderTask = t => (
 		<Task
 			key={t.id}
 			text={t.text}
 			complete={t.complete}
+			dueDate={t.dueDate}
 			onChange={async checked => {
 				setBusy(true);
 				if (checked) {
@@ -96,9 +176,13 @@ export default function App () {
 						optimisticResponse: {
 							__typename: 'Mutation',
 							complete: {
-								...t,
-								__typename: 'Task',
-								complete: true,
+								__typename: 'CompletePayload',
+								task: {
+									...t,
+									__typename: 'Task',
+									complete: true,
+									completedAt: new Date().toISOString()
+								}
 							}
 						},
 					});
@@ -109,9 +193,12 @@ export default function App () {
 						optimisticResponse: {
 							__typename: 'Mutation',
 							uncomplete: {
-								...t,
-								__typename: 'Task',
-								complete: false,
+								__typename: 'UncompletePayload',
+								task: {
+									...t,
+									__typename: 'Task',
+									complete: false,
+								}
 							}
 						},
 					});

@@ -43,7 +43,8 @@ create table if not exists public.tasks (
   created_at timestamp without time zone not null
 );
 
-alter table public.tasks add column completed_at timestamp without time zone;
+alter table public.tasks add column if not exists completed_at timestamp without time zone;
+alter table public.tasks add column if not exists due_date timestamp with time zone null;
 
 comment on table public.tasks is E'@omit update,delete';
 comment on column public.tasks.created_at is E'@omit create';
